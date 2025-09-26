@@ -106,7 +106,7 @@ export const useBreathingSession = () => {
         let sessionRemaining = Math.max(prev.sessionRemaining - delta, 0);
         let currentPhase = prev.currentPhase;
         let cyclesCompleted = prev.cyclesCompleted;
-        let running = prev.running;
+        let running: boolean = prev.running;
         let completed = prev.completed;
         let paused = prev.paused;
 
