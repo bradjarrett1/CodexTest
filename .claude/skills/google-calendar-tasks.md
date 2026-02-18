@@ -655,6 +655,299 @@ updateTasks().catch(console.error);
 | Need to work on | `QUd2MnhGUUg5djU4cE5lUQ` |
 | IT Study Goals | `N040cjBzQmhuYTYzYmNpUA` |
 
+---
+
+### Script: `update-event.js`
+Update or reschedule an existing calendar event. Supports changing title, description, location, start/end time, or any combination. Run `search-calendar.js` first to get the event ID.
+
+```javascript
+/**
+ * update-event.js
+ * Update/reschedule an existing Google Calendar event.
+ * Run search-calendar.js first to get the event ID.
+ */
+const { google } = require('googleapis');
+const fs = require('fs');
+const path = require('path');
+
+const CREDENTIALS_PATH = path.join(__dirname, '.google-credentials.json');
+const TOKEN_PATH = path.join(__dirname, '.google-token.json');
+
+async function getAuthClient() {
+  const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+  const { client_id, client_secret, redirect_uris } = credentials.installed;
+  const oauth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+  const token = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
+  oauth2Client.setCredentials(token);
+  try {
+    const { credentials: newCreds } = await oauth2Client.refreshAccessToken();
+    oauth2Client.setCredentials(newCreds);
+    fs.writeFileSync(TOKEN_PATH, JSON.stringify(newCreds, null, 2));
+  } catch (e) {}
+  return oauth2Client;
+}
+
+async function updateEvent(eventId, updates, calendarId = 'primary') {
+  const auth = await getAuthClient();
+  const calendar = google.calendar({ version: 'v3', auth });
+  const existing = await calendar.events.get({ calendarId, eventId });
+  const before = existing.data;
+  console.log('Updating:', before.summary);
+  console.log('Current start:', before.start.dateTime || before.start.date);
+  const response = await calendar.events.patch({ calendarId, eventId, requestBody: updates });
+  const after = response.data;
+  console.log('✅ Updated!');
+  console.log('New start:', after.start.dateTime || after.start.date);
+  console.log('Event link:', after.htmlLink);
+  return after;
+}
+
+async function rescheduleEvent(eventId, newStartISO, newEndISO, timezone = 'America/New_York') {
+  return await updateEvent(eventId, {
+    start: { dateTime: newStartISO, timeZone: timezone },
+    end:   { dateTime: newEndISO,   timeZone: timezone },
+  });
+}
+
+async function main() {
+  // Reschedule: await rescheduleEvent('EVENT_ID', '2026-02-18T20:00:00', '2026-02-18T21:30:00');
+  // Rename+move: await updateEvent('EVENT_ID', { summary: 'New Title', start: { dateTime: '...', timeZone: 'America/New_York' }, end: { dateTime: '...', timeZone: 'America/New_York' } });
+  console.log('Edit main() with your event ID and updates, then re-run.');
+}
+main().catch(console.error);
+```
+
+---
+
+### Script: `search-calendar.js`
+Search calendar events by keyword and/or date range. Prints event IDs needed for `update-event.js`. Handles pagination for large result sets.
+
+```javascript
+/**
+ * search-calendar.js
+ * Search Google Calendar events by keyword and/or date range.
+ * Prints event IDs — use these with update-event.js.
+ */
+const { google } = require('googleapis');
+const fs = require('fs');
+const path = require('path');
+
+const CREDENTIALS_PATH = path.join(__dirname, '.google-credentials.json');
+const TOKEN_PATH = path.join(__dirname, '.google-token.json');
+
+async function getAuthClient() {
+  const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+  const { client_id, client_secret, redirect_uris } = credentials.installed;
+  const oauth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+  const token = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
+  oauth2Client.setCredentials(token);
+  try {
+    const { credentials: newCreds } = await oauth2Client.refreshAccessToken();
+    oauth2Client.setCredentials(newCreds);
+    fs.writeFileSync(TOKEN_PATH, JSON.stringify(newCreds, null, 2));
+  } catch (e) {}
+  return oauth2Client;
+}
+
+async function searchCalendar(options = {}) {
+  const auth = await getAuthClient();
+  const calendar = google.calendar({ version: 'v3', auth });
+  const now = new Date();
+  const thirtyDaysOut = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const params = {
+    calendarId: options.calendarId || 'primary',
+    timeMin: options.timeMin || now.toISOString(),
+    timeMax: options.timeMax || thirtyDaysOut.toISOString(),
+    maxResults: options.maxResults || 20,
+    singleEvents: true,
+    orderBy: 'startTime',
+  };
+  if (options.query) params.q = options.query;
+  console.log(`=== Calendar Search ===`);
+  if (options.query) console.log(`Query: "${options.query}"`);
+  let allEvents = [];
+  let pageToken = null;
+  do {
+    if (pageToken) params.pageToken = pageToken;
+    const response = await calendar.events.list(params);
+    allEvents = allEvents.concat(response.data.items || []);
+    pageToken = response.data.nextPageToken;
+  } while (pageToken);
+  if (allEvents.length === 0) { console.log('No events found.'); return []; }
+  console.log(`\nFound ${allEvents.length} event(s):\n`);
+  allEvents.forEach((event, i) => {
+    const start = event.start.dateTime
+      ? new Date(event.start.dateTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+      : event.start.date;
+    console.log(`  ${i + 1}. ${event.summary || '(No title)'}`);
+    console.log(`     Time: ${start}`);
+    console.log(`     ID:   ${event.id}\n`);
+  });
+  return allEvents;
+}
+
+async function main() {
+  await searchCalendar({ query: 'CCNA' });
+  // await searchCalendar({ timeMin: '2026-02-17T00:00:00Z', timeMax: '2026-02-24T23:59:59Z' });
+  // await searchCalendar({ query: 'Study', timeMin: new Date().toISOString(), maxResults: 50 });
+}
+main().catch(console.error);
+```
+
+---
+
+### Script: `list-calendars.js`
+List all calendars on the account (primary, owned, shared, read-only) with their IDs. Use these IDs when targeting non-primary calendars in other scripts.
+
+```javascript
+/**
+ * list-calendars.js
+ * List all calendars and their IDs.
+ */
+const { google } = require('googleapis');
+const fs = require('fs');
+const path = require('path');
+
+const CREDENTIALS_PATH = path.join(__dirname, '.google-credentials.json');
+const TOKEN_PATH = path.join(__dirname, '.google-token.json');
+
+async function getAuthClient() {
+  const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+  const { client_id, client_secret, redirect_uris } = credentials.installed;
+  const oauth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+  const token = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
+  oauth2Client.setCredentials(token);
+  try {
+    const { credentials: newCreds } = await oauth2Client.refreshAccessToken();
+    oauth2Client.setCredentials(newCreds);
+    fs.writeFileSync(TOKEN_PATH, JSON.stringify(newCreds, null, 2));
+  } catch (e) {}
+  return oauth2Client;
+}
+
+async function listAllCalendars() {
+  const auth = await getAuthClient();
+  const calendar = google.calendar({ version: 'v3', auth });
+  console.log('=== All Google Calendars ===\n');
+  let allCalendars = [];
+  let pageToken = null;
+  do {
+    const params = { maxResults: 100 };
+    if (pageToken) params.pageToken = pageToken;
+    const response = await calendar.calendarList.list(params);
+    allCalendars = allCalendars.concat(response.data.items || []);
+    pageToken = response.data.nextPageToken;
+  } while (pageToken);
+  allCalendars.forEach((cal, i) => {
+    console.log(`  ${i + 1}. ${cal.summary}${cal.primary ? ' (PRIMARY)' : ''}`);
+    console.log(`     ID:     ${cal.id}`);
+    console.log(`     Access: ${cal.accessRole}`);
+    if (cal.timeZone) console.log(`     TZ:     ${cal.timeZone}`);
+    console.log('');
+  });
+  console.log(`Total: ${allCalendars.length} calendar(s)`);
+  return allCalendars;
+}
+
+listAllCalendars().catch(console.error);
+```
+
+---
+
+### Script: `free-busy.js`
+Check when you're busy and find open time slots of a given duration. Great for scheduling — tells you exactly where you have room in a day or week.
+
+```javascript
+/**
+ * free-busy.js
+ * Check free/busy and find open slots of a given duration.
+ */
+const { google } = require('googleapis');
+const fs = require('fs');
+const path = require('path');
+
+const CREDENTIALS_PATH = path.join(__dirname, '.google-credentials.json');
+const TOKEN_PATH = path.join(__dirname, '.google-token.json');
+
+async function getAuthClient() {
+  const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+  const { client_id, client_secret, redirect_uris } = credentials.installed;
+  const oauth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+  const token = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
+  oauth2Client.setCredentials(token);
+  try {
+    const { credentials: newCreds } = await oauth2Client.refreshAccessToken();
+    oauth2Client.setCredentials(newCreds);
+    fs.writeFileSync(TOKEN_PATH, JSON.stringify(newCreds, null, 2));
+  } catch (e) {}
+  return oauth2Client;
+}
+
+async function checkFreeBusy(timeMin, timeMax, slotMinutes = 60, calendarIds = ['primary']) {
+  const auth = await getAuthClient();
+  const calendar = google.calendar({ version: 'v3', auth });
+  console.log(`=== Free/Busy Check ===`);
+  console.log(`Range: ${new Date(timeMin).toLocaleString()} → ${new Date(timeMax).toLocaleString()}`);
+  console.log(`Looking for: ${slotMinutes}-minute open slots\n`);
+  const response = await calendar.freebusy.query({
+    requestBody: {
+      timeMin, timeMax,
+      timeZone: 'America/New_York',
+      items: calendarIds.map(id => ({ id })),
+    },
+  });
+  const busyPeriods = [];
+  for (const [, calData] of Object.entries(response.data.calendars)) {
+    (calData.busy || []).forEach(p => busyPeriods.push({ start: new Date(p.start), end: new Date(p.end) }));
+  }
+  busyPeriods.sort((a, b) => a.start - b.start);
+  if (busyPeriods.length === 0) {
+    console.log('No busy periods — completely free!\n');
+  } else {
+    console.log(`Busy periods:`);
+    busyPeriods.forEach((p, i) => {
+      const s = p.start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const e = p.end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      console.log(`  ${i + 1}. ${s} - ${e} (${Math.round((p.end - p.start) / 60000)} min)`);
+    });
+    console.log('');
+  }
+  // Find free slots
+  const slotMs = slotMinutes * 60 * 1000;
+  const freeSlots = [];
+  let cursor = new Date(timeMin);
+  for (const busy of busyPeriods) {
+    if (cursor < busy.start && busy.start - cursor >= slotMs)
+      freeSlots.push({ start: new Date(cursor), end: new Date(busy.start) });
+    if (busy.end > cursor) cursor = busy.end;
+  }
+  if (cursor < new Date(timeMax) && new Date(timeMax) - cursor >= slotMs)
+    freeSlots.push({ start: new Date(cursor), end: new Date(timeMax) });
+  if (freeSlots.length === 0) {
+    console.log(`No ${slotMinutes}+ min free slots found.`);
+  } else {
+    console.log(`Free slots (${slotMinutes}+ min):`);
+    freeSlots.forEach((slot, i) => {
+      const s = slot.start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const e = slot.end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      console.log(`  ${i + 1}. ${s} - ${e} (${Math.round((slot.end - slot.start) / 60000)} min available)`);
+    });
+  }
+  return { busyPeriods, freeSlots };
+}
+
+async function main() {
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 6, 0, 0);
+  const end   = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 0);
+  await checkFreeBusy(start.toISOString(), end.toISOString(), 60);
+  // Tomorrow 90-min slots: await checkFreeBusy(tomorrowStart.toISOString(), tomorrowEnd.toISOString(), 90);
+}
+main().catch(console.error);
+```
+
+---
+
 ## Workflow Summary
 
 When the user asks to interact with Google Calendar/Tasks:
@@ -662,5 +955,28 @@ When the user asks to interact with Google Calendar/Tasks:
 1. **View today** → run `node todays-agenda.js`
 2. **Get task IDs** (needed before completing/editing) → run `node get-task-ids.js`
 3. **Mark complete / add tasks** → write a quick script using the pattern above, run it with `node <script>.js`
-4. **All scripts go in** `C:/Users/Admin/GoogleCalendarTasksAPI/`
-5. **Credentials** are at `.google-credentials.json` and `.google-token.json` in that same directory — token auto-refreshes
+4. **Find a calendar event ID** → run `node search-calendar.js` (edit query first)
+5. **Update/reschedule a calendar event** → edit and run `node update-event.js`
+6. **Check free time** → run `node free-busy.js`
+7. **List all calendars** → run `node list-calendars.js`
+8. **All scripts go in** `C:/Users/Admin/GoogleCalendarTasksAPI/`
+9. **Credentials** are at `.google-credentials.json` and `.google-token.json` in that same directory — token auto-refreshes
+
+## Complete Script Inventory
+
+| Script | Purpose |
+|--------|---------|
+| `todays-agenda.js` | View today's calendar events + all pending tasks |
+| `get-task-ids.js` | Dump all task list IDs and task IDs |
+| `search-calendar.js` | Search events by keyword and/or date range |
+| `update-event.js` | Update/reschedule an existing calendar event |
+| `list-calendars.js` | List all calendars with their IDs |
+| `free-busy.js` | Check busy periods and find open time slots |
+| `add-ps5-time.js` | Create a PS5 gaming session event |
+| `schedule-today.js` | Create a full day's schedule of events |
+| `cleanup-security-plus.js` | Delete Security+ study events |
+| `update-focus-list.js` | Clear and repopulate the Focus List |
+| `update-tasks.js` | Bulk update/reschedule tasks |
+| `list-task-lists.js` | List all task lists |
+| `auth.js` | OAuth flow for initial authentication |
+| `test-connection.js` | Verify API connection is working |
