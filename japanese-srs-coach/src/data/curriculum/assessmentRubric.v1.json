@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "questions": [
+    {"questionId":"a1","competency":"greetings","prompt":"Write a polite Japanese greeting for 'Good morning' using Romaji.","acceptedAnswers":["ohayou gozaimasu","ohayo gozaimasu"],"explanation":"Ohayou gozaimasu is the polite morning greeting.","difficulty":1},
+    {"questionId":"a2","competency":"nouns","prompt":"Write the Japanese word for 'water' using Romaji.","acceptedAnswers":["mizu"],"explanation":"Mizu means water.","difficulty":1},
+    {"questionId":"a3","competency":"verbs","prompt":"Write the Japanese verb 'to eat' using Romaji.","acceptedAnswers":["taberu"],"explanation":"Taberu means to eat.","difficulty":1},
+    {"questionId":"a4","competency":"sentence_order","prompt":"Translate 'I am a student' using Romaji. A natural topic-based answer is expected.","acceptedAnswers":["watashi wa gakusei desu","gakusei desu"],"explanation":"Watashi wa gakusei desu follows topic + description + desu.","difficulty":2},
+    {"questionId":"a5","competency":"particles","prompt":"Translate 'I drink water' using Romaji and include the object particle.","acceptedAnswers":["watashi wa mizu o nomimasu","mizu o nomimasu","watashi wa mizu wo nomimasu","mizu wo nomimasu"],"explanation":"O marks mizu as the direct object of nomimasu.","difficulty":2},
+    {"questionId":"a6","competency":"time","prompt":"Write the Romaji words for 'today, tomorrow, yesterday' in that order.","acceptedAnswers":["kyou ashita kinou","kyo ashita kino"],"explanation":"Kyou, ashita, kinou mean today, tomorrow, yesterday.","difficulty":2},
+    {"questionId":"a7","competency":"desire","prompt":"Translate 'I want to eat sushi' using Romaji.","acceptedAnswers":["sushi o tabetai desu","sushi wo tabetai desu","sushi ga tabetai desu"],"explanation":"The verb stem tabe- plus tai expresses wanting to eat.","difficulty":3},
+    {"questionId":"a8","competency":"existence","prompt":"Translate 'There is a cat' using Romaji.","acceptedAnswers":["neko ga imasu","neko ga iru"],"explanation":"Iru/imasu is used for living things.","difficulty":3},
+    {"questionId":"a9","competency":"english_to_japanese","prompt":"Translate 'I go to the library today' using Romaji.","acceptedAnswers":["kyou toshokan ni ikimasu","watashi wa kyou toshokan ni ikimasu"],"explanation":"Ni marks the destination, and ikimasu means go.","difficulty":4},
+    {"questionId":"a10","competency":"japanese_to_english","prompt":"Explain this Romaji sentence in English: Ashita kouen de tomodachi to hanashimasu.","acceptedAnswers":["tomorrow i will talk with a friend at the park","i will talk with my friend at the park tomorrow","tomorrow i talk with a friend at the park"],"explanation":"It means talking with a friend at the park tomorrow.","difficulty":5}
+  ],
+  "levels": [
+    {"maxScore":4,"level":"Absolute beginner","recommendedStep":"phase-0-orientation"},
+    {"maxScore":8,"level":"Beginner with memorized phrases","recommendedStep":"phase-0-greetings"},
+    {"maxScore":12,"level":"Early A1-style beginner","recommendedStep":"phase-1-identity"},
+    {"maxScore":16,"level":"Late A1-style beginner","recommendedStep":"phase-2-actions"},
+    {"maxScore":20,"level":"Early A2-style learner","recommendedStep":"phase-3-plans"}
+  ]
+}
