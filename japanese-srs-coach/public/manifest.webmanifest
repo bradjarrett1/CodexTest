@@ -1,0 +1,17 @@
+{
+  "name": "Japanese SRS Coach",
+  "short_name": "SRS Coach",
+  "description": "Focused Romaji-first Japanese voice and spaced-repetition practice.",
+  "start_url": "/#/home",
+  "display": "standalone",
+  "background_color": "#f4f5ef",
+  "theme_color": "#163a32",
+  "icons": [
+    {
+      "src": "/icons/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
